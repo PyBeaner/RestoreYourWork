@@ -18,24 +18,34 @@ def backup():
     Backup your current running processes
     """
     while 1:
-        procs = psutil.process_iter()
-        session = []
-        for proc in procs:
-            try:
-                path = proc.exe()
-                if path not in session:
-                    session.append(path)
-            except psutil.AccessDenied:
-                pass
-
+        sessions = get_current_processes()
         print("Backing up your current work")
-        now = time.strftime("%Y-%m-%d %H.%M.%S")
-        f = open(r"{}\{}.session".format(sessionPath, now), "wt")
-        for line in session:
+        now = time.strftime("%Y-%m-%d.%H.%M.%S")
+        f = open(r"{}/{}.session".format(sessionPath, now), "wt")
+        for line in sessions:
             f.write(line)
             f.write(os.linesep)
+        f.flush()
         f.close()
         time.sleep(300)
+
+
+def get_current_processes():
+    """
+    获取当前的进程列表
+
+    :return:
+    """
+    procs = psutil.process_iter()
+    session = []
+    for proc in procs:
+        try:
+            path = proc.exe()
+            if path not in session:
+                session.append(path)
+        except psutil.AccessDenied:
+            pass
+    return session
 
 
 def restore():
@@ -45,14 +55,17 @@ def restore():
     sessions = list(file for file in os.listdir(sessionPath) if file.endswith(".session"))
     if not sessions:
         if not sessions:
-            now = time.strftime("%Y-%m-%d %H.%M.%S")
-            print("No session found", file=open(r"{}\{}.log".format(logPath, now)))
+            print("No session found")
             return
     sessions.sort()
     last_session = sessions[-1]
+    started_processes = get_current_processes()
     print("Starts to restore your last session")
     with open(os.path.join(sessionPath, last_session)) as session_file:
         for proc in session_file:
+            proc = proc.strip()
+            if proc in started_processes:
+                continue
             dir, exe = os.path.dirname(proc), os.path.basename(proc)
             start_process(dir, exe, abs_path=proc)
             time.sleep(2)
@@ -71,7 +84,7 @@ def start_process(dir, exe, abs_path=None):
         print("working on path:", dir)
         os.chdir(dir)
         print("start process:", exe)
-        subprocess.Popen([exe])
+        subprocess.Popen(["./" + exe])  # linux/Mac下需加上当前目录（.）
     except FileNotFoundError:
         print("cannot open:", abs_path)
 
