@@ -18,16 +18,31 @@ def backup():
     Backup your current running processes
     """
     while 1:
-        sessions = get_current_processes()
+        processes = get_current_processes()
         print("Backing up your current work")
         now = time.strftime("%Y-%m-%d.%H.%M.%S")
         f = open(r"{}/{}.session".format(sessionPath, now), "wt")
-        for line in sessions:
+        for line in processes:
             f.write(line)
             f.write(os.linesep)
         f.flush()
         f.close()
-        time.sleep(300)
+
+        sessions = get_backups()
+        if len(sessions) > 5:
+            sessions.sort()
+            for s in sessions[:len(sessions) - 5]:
+                os.remove(s)
+        time.sleep(60)
+
+
+def get_backups():
+    """
+    获取备份文件列表
+    :return:
+    """
+    sessions = list(os.path.join(sessionPath, file) for file in os.listdir(sessionPath) if file.endswith(".session"))
+    return sessions
 
 
 def get_current_processes():
@@ -52,7 +67,7 @@ def restore():
     """
     Restore you last workspace
     """
-    sessions = list(file for file in os.listdir(sessionPath) if file.endswith(".session"))
+    sessions = get_backups()
     if not sessions:
         if not sessions:
             print("No session found")
@@ -61,7 +76,7 @@ def restore():
     last_session = sessions[-1]
     started_processes = get_current_processes()
     print("Starts to restore your last session")
-    with open(os.path.join(sessionPath, last_session)) as session_file:
+    with open(last_session) as session_file:
         for proc in session_file:
             proc = proc.strip()
             if proc in started_processes:
